@@ -46,6 +46,7 @@ async def upload_photo(message: Message):
     await message.answer("Отправленные файлы:\n"+"\n".join(file_ids))
 
 
+
 async def main():
     await dp.start_polling(bot) #
 
