@@ -5,6 +5,7 @@ from aiogram.filters import Command, CommandStart, or_f, CommandObject
 from aiogram.types import Message, FSInputFile, URLInputFile, BufferedInputFile
 from aiogram.enums import ParseMode
 from aiogram.utils.formatting import Text, Bold, as_list, as_marked_section, as_key_value, HashTag
+from aiogram.utils.media_group import MediaGroupBuilder
 from datetime import datetime
 import os
 
@@ -14,28 +15,32 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.TOKEN, parse_mode="HTML")
 dp = Dispatcher()
 
+media_dir = f"{os.path.dirname(__file__)}/media" # Целевая папка
+div_line = '\n' + '-' * 60 + '\n'
+dv_line = '-' * 60
+
 # бот моментально ответит пользователю той же гифкой, что была прислана
 @dp.message(F.animation)
 async def echo_gif(message: Message):
     await message.reply_animation(message.animation.file_id)
 
 # Загрузка Файлов
+# для Windows пути - сделаны абсолютными
+# message.photo[-1] - фото всегда приходит в нескольких экзеплярах. последний - самый большой
 @dp.message(Command('images'))
 async def upload_photo(message: Message):
     # Сюда будем помещать file_id отправленных файлов, чтобы потом ими воспользоваться
     file_ids = []
-    # Чтобы продемонстрировать BufferedInputFile, воспользуемся "классическим"
-    # открытием файла через `open()`. Но, вообще говоря, этот способ
-    # лучше всего подходит для отправки байтов из оперативной памяти
+    # Чтобы продемонстрировать BufferedInputFile, воспользуемся "классическим" открытием файла через `open()`.
+    # этот способ лучше всего подходит для отправки байтов из оперативной памяти
     # после проведения каких-либо манипуляций, например, редактированием через Pillow
-    temp_dir = os.path.dirname(__file__)
-    with open(file=temp_dir+r"/media/buffer_emulation_.jpg", mode="rb") as image_from_buffer:
+    with open(file=f"{media_dir}/buffer_emulation_.jpg", mode="rb") as image_from_buffer:
         result = await message.answer_photo(
             BufferedInputFile(image_from_buffer.read(), filename="image_from_buffer.jpg"),
             caption="Изображение из буфера")
         file_ids.append(result.photo[-1].file_id)
     # Отправка файла из файловой системы
-    image_from_pc = FSInputFile(temp_dir+r"/media/image_from_pc.jpg")
+    image_from_pc = FSInputFile(f"{media_dir}/image_from_pc.jpg")
     result = await message.answer_photo(image_from_pc, caption="Изображение из файла на компьютере")
     file_ids.append(result.photo[-1].file_id)
     # Отправка файла по ссылке
@@ -43,7 +48,46 @@ async def upload_photo(message: Message):
     image_from_url = URLInputFile(url_adress)
     result = await message.answer_photo(image_from_url, caption="Изображение по ссылке")
     file_ids.append(result.photo[-1].file_id)
-    await message.answer("Отправленные файлы:\n"+"\n".join(file_ids))
+    content = as_list(Bold("Отправленные файлы:"), div_line.join(file_ids))
+    # await message.answer(f"Отправленные файлы:{div_line}" + div_line.join(file_ids))
+    await message.answer(content.as_html())
+
+# Скачивание файлов
+# для Windows пути - сделаны абсолютными
+@dp.message(F.photo)
+async def download_photo(message: Message, bot: Bot):
+    # print(message.photo[-1]) # 5 полей: file_id='AgA...' file_unique_id='AQA...' width=482 height=258 file_size=21890
+    file_name = f"{message.photo[-1].file_id}.jpg"
+    await bot.download(message.photo[-1], destination=(media_dir + file_name))
+    # await message.answer(f"Фото загружено в \n{media_dir}.{div_line}Имя файла: \n{file_name}")
+    content = as_list("Фото загружено в:", media_dir, dv_line, "Имя файла:", file_name)
+    await message.answer(content.as_html())
+
+@dp.message(F.sticker)
+async def download_sticker(message: Message, bot: Bot):
+    file_name = f"{message.sticker.file_id}.jpg"
+    await bot.download(message.sticker, destination=(media_dir + file_name))
+    # await message.answer(f"Стикер загружен в {media_dir}.{div_line}Имя файла: {file_name}")
+    content = as_list("Стикер загружен в:", media_dir, dv_line, "Имя файла:", file_name)
+    await message.answer(content.as_html())
+
+# АЛЬБОМЫ
+@dp.message(Command("album"))
+async def cmd_album(message: Message):
+    album_builder = MediaGroupBuilder(caption="Общая подпись для будущего альбома")
+    album_builder.add(
+        type="photo",
+        media=FSInputFile(f"{media_dir}/image_from_pc.jpg")
+        # caption="Подпись к конкретному медиа"
+    )
+    # Если мы сразу знаем тип, то вместо общего add можно сразу вызывать add_<тип>
+    # Для ссылок или file_id достаточно сразу указать значение
+    album_builder.add_photo(media="https://ae04.alicdn.com/kf/Sa780e839357844c0a90c66d8724bbf25k.jpg_640x640.jpg")
+    album_builder.add_photo(media="AgACAgIAAxkBAAIHPGYPpdhPqZMlm2WV-gABwQFeY67d5QACVdsxG1C2eUg8z0wUkTnawwEAAwIAA3gAAzQE") # "<ваш file_id>"
+    # Не забудьте вызвать build()
+    await message.answer_media_group(media=album_builder.build())
+
+
 
 async def main():
     await dp.start_polling(bot) #
