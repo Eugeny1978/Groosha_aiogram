@@ -8,17 +8,10 @@ left_chat_member - уже при 50 и менее (были случаи left_ch
 С выходом Bot API 5.0 у разработчиков появился гораздо более надёжный способ видеть входы/выходы участников
 в группах любого размера, а также в каналах. Но об этом - ОСОБЫЕ АПДЕЙТЫ
 """
-
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher, types, html, F
-from aiogram.filters import Command, CommandStart, or_f, CommandObject
-from aiogram.types import Message, FSInputFile, URLInputFile, BufferedInputFile
-from aiogram.enums import ParseMode
-from aiogram.utils.formatting import Text, Bold, as_list, as_marked_section, as_key_value, HashTag
-from aiogram.utils.media_group import MediaGroupBuilder
-from datetime import datetime
-import os
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message
 
 import config
 
@@ -26,16 +19,11 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=config.TOKEN, parse_mode="HTML")
 dp = Dispatcher()
 
-media_dir = f"{os.path.dirname(__file__)}/media" # Целевая папка
-dv_line = '-' * 60
-
 @dp.message(F.new_chat_members)
 async def somebody_added(message: Message):
     for user in message.new_chat_members:
         # проперти full_name берёт сразу имя И фамилию (на бывает у юзеров нет фамилии)
         await message.reply(f"Привет, {user.full_name}")
-
-
 
 async def main():
     await dp.start_polling(bot) #
