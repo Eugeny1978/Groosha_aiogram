@@ -1,13 +1,12 @@
 import asyncio
 import logging
+import os
 from aiogram import Bot, Dispatcher, types, html, F
 from aiogram.filters import Command, CommandStart, or_f, CommandObject
 from aiogram.types import Message, FSInputFile, URLInputFile, BufferedInputFile
-from aiogram.enums import ParseMode
 from aiogram.utils.formatting import Text, Bold, as_list, as_marked_section, as_key_value, HashTag
 from aiogram.utils.media_group import MediaGroupBuilder
-from datetime import datetime
-import os
+from aiogram.utils.markdown import hide_link
 
 import config
 
@@ -16,8 +15,9 @@ bot = Bot(token=config.TOKEN, parse_mode="HTML")
 dp = Dispatcher()
 
 media_dir = f"{os.path.dirname(__file__)}/media" # Целевая папка
-div_line = '\n' + '-' * 60 + '\n'
 dv_line = '-' * 60
+div_line = '\n' + dv_line + '\n'
+
 
 # бот моментально ответит пользователю той же гифкой, что была прислана
 @dp.message(F.animation)
@@ -87,6 +87,19 @@ async def cmd_album(message: Message):
     # Не забудьте вызвать build()
     await message.answer_media_group(media=album_builder.build())
 
+
+# Прячем ссылку в тексте
+# Подписи к медиафайлам = 1024 символа против 4096 у обычного текстового, а вставлять внизу ссылку на медиа — выглядит некрасиво.
+# Подход со «скрытыми ссылками» в HTML-разметке.
+# Разработчики aiogram для этого сделали специальный вспомогательный метод hide_link().
+@dp.message(Command("hidden_link"))
+async def cmd_hidden_link(message: Message):
+    await message.answer(
+        f"{hide_link('https://telegra.ph/file/562a512448876923e28c3.png')}"
+        f"Документация Telegram: существует ⚙️\n"
+        f"Пользователи: не читают документацию 🧻\n"
+        f"Разработчики:"
+    )
 
 
 async def main():
